@@ -175,7 +175,7 @@ jobs:
       if: steps.tag.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       with:
         files: ${{ env.FIRMWARE }}/*
-        name: NX30Pro for ${{ env.VER }}
+        name: AX3000T for ${{ env.VER }}
         tag_name: ${{ steps.tag.outputs.status }}
         token: ${{ secrets.GITHUB_TOKEN }}
         body: |
