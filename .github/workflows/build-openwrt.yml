@@ -120,41 +120,32 @@ jobs:
         cd openwrt
         echo -e "$(nproc) thread compile"
         make -j$(nproc) || make -j1 || make -j1 V=s
-        echo "status=success" >> $GITHUB_ENV
+        echo "status=success" >> ${GITHUB_OUTPUT}
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
-    - name: 检查空间
+    - name: 核对空间占用
       if: (!cancelled())
       run: df -hT
 
-    - name: 上传bin
+    - name: 上传bin目录
       uses: actions/upload-artifact@main
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      if: steps.compile.outputs.status == 'success' && !cancelled()
       with:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
 
     - name: 整理文件
       id: organize
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
-        cd $GITHUB_WORKSPACE/openwrt/bin/packages
-        tar -zcvf Packages.tar.gz ./*
-        cp Packages.tar.gz $GITHUB_WORKSPACE/openwrt/bin/targets/*/*
-        cd $GITHUB_WORKSPACE/openwrt/bin/targets/*/*
+        cd openwrt/bin/targets/*/*
         rm -rf packages
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >>$GITHUB_OUTPUT
 
-    - name: 计算固件MD5
-      run: |
-        cd ${{ env.FIRMWARE }} && rm -rf sha256sums
-        MD5=$(md5sum * | sed ':a;N;$!ba;s/\n/<br>/g')
-        echo "MD5=$MD5" >> $GITHUB_ENV
-
-    - name: 上传固件
+    - name: 上传固件目录
       uses: actions/upload-artifact@main
       if: steps.organize.outputs.status == 'success' && !cancelled()
       with:
@@ -165,28 +156,29 @@ jobs:
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
-        echo "release_tag=Xiaomi-AX3000T-LEDE-$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_ENV
+        echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_ENV
         touch release.txt
-         echo "status=success" >>$GITHUB_OUTPUT
+        [ $UPLOAD_COWTRANSFER = true ] && echo "🔗 [Cowtransfer](${{ steps.cowtransfer.outputs.url }})" >> release.txt
+        [ $UPLOAD_WETRANSFER = true ] && echo "🔗 [WeTransfer](${{ steps.wetransfer.outputs.url }})" >> release.txt
+        echo "Xiaomi-AX3000T-LEDE Openwrt 固件配置：" >> release.txt
+        echo "IP:192.168.32.1" >> release.txt
+        echo "WEB登陆账户：root" >> release.txt
+        echo "密码：password" >> release.txt
+        echo "固件源码：https://github.com/coolsnowwolf/lede" >> release.txt
+        echo "固件内核版本：5.15" >> release.txt
+        echo "${{ env.useVersionInfo }}" >> release.txt
+        echo "status=success" >>$GITHUB_OUTPUT
 
-    - name: 发布OpenWrt固件到Releases
+    - name: 发布到Release
       uses: softprops/action-gh-release@v1
-      if: steps.tag.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
+        name: Xiaomi-AX3000T-LEDE ${{ env.VER }}
+        tag_name: ${{ env.release_tag }} 
+        body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
-        name: AX3000T for ${{ env.VER }}
-        tag_name: ${{ steps.tag.outputs.status }}
-        token: ${{ secrets.GITHUB_TOKEN }}
-        body: |
-          - 版本号：${{ env.VER }}
-          - 默认IP：192.168.32.1
-          - 默认密码：password
-          - 当前使用版本:【编译前的最后一次[➦主源码](https://github.com/coolsnowwolf/lede)更新记录】
-          - 下载后请仔细校验MD5，如不正确请重新下载
-          ${{ env.useVersionInfo }}
-      
-          `md5sum`
-          > ${{ env.MD5 }}
 
     - name: 删除工作流
       uses: Mattraks/delete-workflow-runs@v2
