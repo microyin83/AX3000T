@@ -11,7 +11,7 @@
 #
 
 # Modify default IP
-sed -i 's/192.168.1.1/192.168.32.0/g' package/base-files/files/bin/config_generate
+sed -i 's/192.168.1.1/192.168.32.1/g' package/base-files/files/bin/config_generate
 
 # MUA2F RKP-IPID模块，特殊场景使用，如果你需要再开启
 # git clone https://github.com/EOYOHOO/UA2F.git package/UA2F
