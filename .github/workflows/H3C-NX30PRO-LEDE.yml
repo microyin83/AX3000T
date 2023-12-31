@@ -12,7 +12,7 @@ name: Build H3C-NX30PRO-LEDE
 
 on:
   schedule:
-    - cron: '0 3 * * 1'
+    - cron: '00 10 1 * *'
   repository_dispatch:
   workflow_dispatch:
     inputs:
